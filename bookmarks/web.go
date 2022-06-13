@@ -110,14 +110,21 @@ func (app *application) find(w http.ResponseWriter, r *http.Request) {
 		index[q.Name] = struct{}{}
 		valid = true
 	}
+	var tags []string
+	var tagMap = make(map[string]bool)
+
 	tag := r.URL.Query().Get("tag")
 	if tag != "" {
-		if _, ok = tagIndex[tag]; !ok {
-			http.Error(w, fmt.Sprintf("%s: not found", tag), http.StatusNotFound)
-			return
-		}
-		for _, t := range tagIndex[tag] {
-			index[t.Name] = struct{}{}
+		tags = strings.Split(tag, ",")
+		for _, _tag := range tags {
+			if _, ok = tagIndex[_tag]; !ok {
+				http.Error(w, fmt.Sprintf("%s: not found", _tag), http.StatusNotFound)
+				return
+			}
+			for _, e := range tagIndex[_tag] {
+				index[e.Name] = struct{}{}
+				tagMap[_tag] = true
+			}
 		}
 		valid = true
 	}
@@ -126,8 +133,13 @@ func (app *application) find(w http.ResponseWriter, r *http.Request) {
 	} else {
 		var r = make([]*Bookmark, 0)
 		for b := range index {
-			nameIndex[b].Update()
-			r = append(r, nameIndex[b])
+			for _, t := range nameIndex[b].Tags {
+				if _, ok := tagMap[t]; ok {
+					nameIndex[b].Update()
+					r = append(r, nameIndex[b])
+				}
+
+			}
 		}
 		enc.Encode(r)
 	}
