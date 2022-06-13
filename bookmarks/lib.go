@@ -7,37 +7,38 @@ import (
 	"time"
 )
 
-type bookmark struct {
+// Bookmark record
+type Bookmark struct {
 	Name     string
 	Tags     []string
-	Url      string
+	URL      string
 	Created  int64
 	Accessed int64
 	Views    int32
 }
 
-func (b bookmark) String() string {
-	return fmt.Sprintf("%s | %s | %s | Views: %d", b.Name, b.Url, strings.Join(b.Tags, ","), b.Views)
+func (b Bookmark) String() string {
+	return fmt.Sprintf("%s | %s | %s | Views: %d", b.Name, b.URL, strings.Join(b.Tags, ","), b.Views)
 }
 
-type db []*bookmark
+type db []*Bookmark
 
-var tagIndex = make(map[string][]*bookmark, 0)
-var urlIndex = make(map[string]*bookmark)
-var nameIndex = make(map[string]*bookmark)
+var tagIndex = make(map[string][]*Bookmark, 0)
+var urlIndex = make(map[string]*Bookmark)
+var nameIndex = make(map[string]*Bookmark)
 
 func NewDB() db {
-	return make([]*bookmark, 0)
+	return make([]*Bookmark, 0)
 }
 
-func (d db) FindUrl(url string) *bookmark {
+func (d db) FindURL(url string) *Bookmark {
 	if b, ok := urlIndex[url]; ok {
 		return b
 	}
 	return nil
 }
 
-func (d db) Find(name string) (int, *bookmark) {
+func (d db) Find(name string) (int, *Bookmark) {
 	for i, k := range d {
 		if k.Name == name {
 			k.Views++
@@ -47,8 +48,8 @@ func (d db) Find(name string) (int, *bookmark) {
 	return -1, nil
 }
 
-func (d db) FindbyTags(tags ...string) []*bookmark {
-	r := make([]*bookmark, 0)
+func (d db) FindbyTags(tags ...string) []*Bookmark {
+	r := make([]*Bookmark, 0)
 	for _, tag := range tags {
 		if bookmarkList, ok := tagIndex[tag]; ok {
 			for _, b := range bookmarkList {
@@ -63,7 +64,7 @@ func (d db) FindbyTags(tags ...string) []*bookmark {
 func (d *db) updateIndex() {
 	for _, b := range *d {
 		nameIndex[b.Name] = b
-		urlIndex[b.Url] = b
+		urlIndex[b.URL] = b
 		for _, t := range b.Tags {
 			tagIndex[t] = append(tagIndex[t], b)
 		}
@@ -78,7 +79,7 @@ func (d *db) DeleteBookmark(name string) error {
 	(*d)[i] = (*d)[0]
 	*d = (*d)[1:]
 	delete(nameIndex, b.Name)
-	delete(urlIndex, b.Url)
+	delete(urlIndex, b.URL)
 	for _, t := range b.Tags {
 		b := tagIndex[t]
 		if len(b) == 1 {
@@ -95,21 +96,24 @@ func (d *db) DeleteBookmark(name string) error {
 	return nil
 }
 
-func (d db) Dump() {
+func (d db) Dump() []Bookmark {
+	var b = make([]Bookmark, 0)
 	for _, k := range d {
 		fmt.Println("\t", k)
+		b = append(b, *k)
 	}
 	fmt.Println("dumping urls")
 	for u, v := range urlIndex {
 		fmt.Println("Url", u, "value", v)
 	}
+	return b
 }
 
 func (d db) Size() int {
 	return len(d)
 }
 
-func (d *db) Add(b *bookmark) error {
+func (d *db) Add(b *Bookmark) error {
 	if _, found := d.Find(b.Name); found != nil {
 		return errors.New("[SKIP] entry " + b.Name + " already exists.")
 	}
@@ -117,24 +121,24 @@ func (d *db) Add(b *bookmark) error {
 	for _, tag := range b.Tags {
 		tagIndex[tag] = append(tagIndex[tag], b)
 	}
-	urlIndex[b.Url] = b
+	urlIndex[b.URL] = b
 	nameIndex[b.Name] = b
 	return nil
 }
 
-func (b *bookmark) Update() error {
+func (b *Bookmark) Update() error {
 	b.Views++
 	b.Accessed = time.Now().Unix()
 	return nil
 }
 
 // NewBookmark returns a new bookmark record
-func NewBookmark(name, url string, tags []string) *bookmark {
+func NewBookmark(name, url string, tags []string) *Bookmark {
 	t := make([]string, len(tags))
 	copy(t, tags)
-	return &bookmark{
+	return &Bookmark{
 		Name:     name,
-		Url:      url,
+		URL:      url,
 		Tags:     t,
 		Created:  time.Now().Unix(),
 		Accessed: 0,

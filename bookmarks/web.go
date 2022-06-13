@@ -92,7 +92,7 @@ func (app *application) find(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	enc := json.NewEncoder(w)
 	var ok, valid bool
-	var q *bookmark
+	var q *Bookmark
 	if name != "" {
 		if _, ok = nameIndex[name]; !ok {
 			http.Error(w, fmt.Sprintf("%s: not found", name), http.StatusNotFound)
@@ -124,10 +124,12 @@ func (app *application) find(w http.ResponseWriter, r *http.Request) {
 	if !valid {
 		http.Error(w, "One of url, tag, name param missing", http.StatusBadRequest)
 	} else {
+		var r = make([]*Bookmark, 0)
 		for b := range index {
 			nameIndex[b].Update()
-			enc.Encode(nameIndex[b])
+			r = append(r, nameIndex[b])
 		}
+		enc.Encode(r)
 	}
 }
 
@@ -177,8 +179,18 @@ func (app *application) Routes() *http.ServeMux {
 	mux.HandleFunc("/api/v1/find", jsonMiddleware(app.infoLog, app.find))
 	mux.HandleFunc("/api/v1/create", app.createBookmark)
 	mux.HandleFunc("/api/v1/save", app.Sync)
+	mux.HandleFunc("/api/v1/dump", app.Dump)
 	mux.HandleFunc("/api/v1/delete/", jsonMiddleware(app.infoLog, app.Delete))
 	return mux
+}
+
+func (app *application) Dump(w http.ResponseWriter, r *http.Request) {
+	b := app.db.Dump()
+	enc := json.NewEncoder(w)
+	if err := enc.Encode(b); err != nil {
+		fmt.Fprintf(w, "%v", err)
+		return
+	}
 }
 
 func (app *application) Delete(w http.ResponseWriter, r *http.Request) {

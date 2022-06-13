@@ -1,3 +1,4 @@
 db.dump
 db.dump.stat
 .vscode/
+/go-bookmarks
