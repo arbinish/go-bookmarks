@@ -133,10 +133,10 @@ func (app *application) find(w http.ResponseWriter, r *http.Request) {
 	} else {
 		var r = make([]*Bookmark, 0)
 		for b := range index {
+			r = append(r, nameIndex[b])
 			for _, t := range nameIndex[b].Tags {
 				if _, ok := tagMap[t]; ok {
 					nameIndex[b].Update()
-					r = append(r, nameIndex[b])
 				}
 			}
 		}
