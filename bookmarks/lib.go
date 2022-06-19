@@ -61,7 +61,12 @@ func (d db) FindbyTags(tags ...string) []*Bookmark {
 	return r
 }
 
-func (d *db) updateIndex() {
+// rebuild name, url and tag indices
+// invoked during startup, and whenever a metadata is updated.
+func (d *db) rebuildIndex() {
+	urlIndex = make(map[string]*Bookmark)
+	nameIndex = make(map[string]*Bookmark)
+	tagIndex = make(map[string][]*Bookmark)
 	for _, b := range *d {
 		nameIndex[b.Name] = b
 		urlIndex[b.URL] = b

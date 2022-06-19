@@ -138,7 +138,6 @@ func (app *application) find(w http.ResponseWriter, r *http.Request) {
 					nameIndex[b].Update()
 					r = append(r, nameIndex[b])
 				}
-
 			}
 		}
 		enc.Encode(r)
@@ -193,6 +192,7 @@ func (app *application) Routes() *http.ServeMux {
 	mux.HandleFunc("/api/v1/save", app.Sync)
 	mux.HandleFunc("/api/v1/dump", app.Dump)
 	mux.HandleFunc("/api/v1/delete/", jsonMiddleware(app.infoLog, app.Delete))
+	mux.HandleFunc("/api/v1/", jsonMiddleware(app.infoLog, app.Update))
 	return mux
 }
 
@@ -203,6 +203,49 @@ func (app *application) Dump(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "%v", err)
 		return
 	}
+}
+
+func (app *application) Update(w http.ResponseWriter, r *http.Request) {
+	updated := false
+	if r.Method != http.MethodPut {
+		http.Error(w, "invalid method", http.StatusBadRequest)
+		return
+	}
+	paramsExpected := []string{"name", "url", "tags"}
+	name := strings.TrimPrefix(r.URL.Path, "/api/v1/")
+	if name == "" {
+		http.Error(w, "missing name", http.StatusBadRequest)
+		return
+	}
+	idx, _ := app.db.Find(name)
+	if idx == -1 {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "%s: Not Found", name)
+		app.errorLog.Printf("%s: Not found", name)
+		return
+	}
+	app.infoLog.Printf("update: %s, %s\n", name, (*app.db)[idx])
+	for _, param := range paramsExpected {
+		if r.FormValue(param) == "" {
+			continue
+		}
+		updated = true
+		switch param {
+		case "name":
+			(*app.db)[idx].Name = r.FormValue(param)
+		case "url":
+			(*app.db)[idx].URL = r.FormValue(param)
+		case "tags":
+			(*app.db)[idx].Tags = strings.Split(r.FormValue(param), ",")
+		}
+	}
+	if updated {
+		app.db.rebuildIndex()
+		app.Save()
+		fmt.Fprintf(w, "Updated")
+		return
+	}
+	fmt.Fprintf(w, "No change")
 }
 
 func (app *application) Delete(w http.ResponseWriter, r *http.Request) {
@@ -268,8 +311,8 @@ func (app *application) Load() {
 		return
 	}
 	app.infoLog.Println("successfully loaded data from persistent store")
-	// Update various indices
-	app.db.updateIndex()
+	// rebuild various indices
+	app.db.rebuildIndex()
 	app.infoLog.Println("successfully updated indices")
 }
 
